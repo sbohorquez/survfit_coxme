@@ -1,7 +1,7 @@
 Survival estimation Coxme
 ================
 Santiago Bohórquez
-22 de junio de 2016
+July 6, 2016
 
 Estimation of baseline survival
 -------------------------------
@@ -49,27 +49,36 @@ alpha_j<-function(cox_me,j){
   return(op$par)
 }
 
-S0<-function(cox_me){
-  t<-max(cox_me$y[,(ncol(cox_me$y)-1)])
-  alpha<-sapply(1:t,alpha_j,cox_me=cox_me)
+S0<-function(cox_me,t){
+  alpha<-sapply(t,alpha_j,cox_me=cox_me)
   return(cumprod(alpha))
 }
 
 survfit.coxme<-function(cox_me,newdata=NULL){
   survfit<-list()
   survfit$n<-cox_me$n[2]
+  events<-table(cox_me$y[,(ncol(cox_me$y)-1)],cox_me$y[,ncol(cox_me$y)])
+  survfit$time<-as.numeric(rownames(events))
+  rownames(events)<-c()
+  survfit$n.risk<-cox_me$n[2]-cumsum(rowSums(events))
+  survfit$n.event<-events[,2]
+  survfit$n.censor<-events[,1]
   if (length(newdata)==0) {
-    S0_est<-S0(cox_me)
+    S0_est<-S0(cox_me,survfit$time)
     survfit$surv<-S0_est^(exp(sum(cox_me$means*cox_me$coefficients))) 
     return(survfit)
   }
   else {
-    S0_est<-S0(cox_me)
+    S0_est<-S0(cox_me,survfit$time)
     data_est<-data.matrix(newdata[,names(cox_me$coefficients)])%*%cox_me$coefficients
     survfit$surv<-sapply(data_est,function(x,y) y^(exp(x)),y=S0_est)
+    survfit$time<-unique(cox_me$y[which(cox_me$y[,ncol(cox_me$y)]==1),
+                     (ncol(cox_me$y)-1)])
     return(survfit)
   }
 }
+
+
 # 
 # print.survfit.coxme<-function(x,...){
 #   cat("Surv:\n")
@@ -81,7 +90,7 @@ survfit.coxme<-function(cox_me,newdata=NULL){
 attach(lung)
 
 lung_coxme<-coxme(Surv(time,status)~age+sex+(1|inst))
-# newdata<-cbind.data.frame(eneindex=c(1,2),unemp=c(500,500))
+
 summary(lung_coxme)
 ```
 
@@ -110,11 +119,15 @@ summary(lung_coxme)
 jaja<-survfit(lung_coxme)
 
 jum<-survfit(coxph(Surv(time,status)~age+sex))
+
+as<-coxph(Surv(time,status)~age+sex)
+setdiff(jum$time,jaja$time)
 ```
+
+    ## [1] 329
 
 Probblems so far:
 
 -   Factors are not supported
--   Calculates surv at all times, better to only calculate given a list or where there are events.
 -   No confidence intervals
 -   Only returns n and surv
