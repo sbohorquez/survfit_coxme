@@ -1,2 +1,2 @@
 # survfit_coxme
-survfit extension for coxme package
+survfit extension for R coxme package
