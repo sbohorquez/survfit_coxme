@@ -63,7 +63,7 @@ varlogst<-function(cox_me,i){
 
 
 
-survfit.coxme<-function(cox_me,newdata=NULL){
+survfit.coxme<-function(cox_me,newdata=NULL,conf.type="log"){
   survfit<-list()
   survfit$n<-cox_me$n[2]
   events<-table(cox_me$y[,(ncol(cox_me$y)-1)],cox_me$y[,ncol(cox_me$y)])
@@ -73,7 +73,7 @@ survfit.coxme<-function(cox_me,newdata=NULL){
   survfit$n.event<-events[,2]
   survfit$n.censor<-events[,1]
   S0_est<-S0(cox_me,survfit$time)
-  if (length(newdata)==0) {
+  if (is.null(newdata)) {
     survfit$surv<-S0_est^(exp(sum(cox_me$means*cox_me$coefficients))) 
   }
    
@@ -86,6 +86,7 @@ survfit.coxme<-function(cox_me,newdata=NULL){
   survfit$type<-attr(cox_me$y,"type")
   survfit$cumhaz<- -log(survfit$surv)
   var<-cumsum(sapply(survfit$time,varlogst,cox_me=cox_me))
+  #if
   survfit$std.err<-sqrt(var)
   survfit$upper<-survfit$surv*exp(qnorm(0.975)*survfit$std.err)
   survfit$upper[survfit$upper>1]<-1
@@ -98,7 +99,7 @@ survfit.coxme<-function(cox_me,newdata=NULL){
   
 }
 
-lung_coxme<-coxme(Surv(time,status)~age+sex+(1|inst),data=lung)
+lung_coxme <- coxme(Surv(time,status)~age+sex+(1|inst),data=lung)
 summary(lung_coxme)
 ```
 
@@ -276,8 +277,15 @@ plot(jaja)
 
 ![](survfit_coxme_files/figure-markdown_github/unnamed-chunk-1-1.png)
 
+``` r
+lung_cox <- coxph(Surv(time,status)~age+sex,data=lung)
+jum <- survfit(lung_cox)
+```
+
 Things to fix:
 
 -   Factors not supported
 -   Only works with Efron and log
--   Faster ways to do it
+-   variance used is Greenwood, need to do Aallen-Link-Tsiatis and Efron
+-   Only 95% conf int
+-   Faster ways to do it?
